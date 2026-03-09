@@ -66,27 +66,11 @@ export default function DashboardPage() {
 
   const recentProjects = useMemo(() => projects?.slice(0, 3) || [], [projects]);
 
-  // Loading state
-  if (projectsLoading || tasksLoading) {
-    return (
-      <div className="space-y-6">
-        <Skeleton className="h-8 w-64" />
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {[...Array(4)].map((_, i) => (
-            <Skeleton key={i} className="h-32" />
-          ))}
-        </div>
-        <div className="grid gap-4 md:grid-cols-2">
-          <Skeleton className="h-64" />
-          <Skeleton className="h-64" />
-        </div>
-      </div>
-    );
-  }
+  const isLoading = projectsLoading || tasksLoading;
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Header - Always render immediately */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Tổng quan</h1>
@@ -102,60 +86,74 @@ export default function DashboardPage() {
         </Button>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Dự án</CardTitle>
-            <FolderKanban className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalProjects}</div>
-            <p className="text-xs text-muted-foreground">Đang quản lý</p>
-          </CardContent>
-        </Card>
+      {/* Stats Cards - Skeleton only for data */}
+      {isLoading ? (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {[...Array(4)].map((_, i) => (
+            <Skeleton key={i} className="h-32" />
+          ))}
+        </div>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Dự án</CardTitle>
+              <FolderKanban className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.totalProjects}</div>
+              <p className="text-xs text-muted-foreground">Đang quản lý</p>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Công việc</CardTitle>
-            <CheckSquare className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {stats.completedTasks}/{stats.totalTasks}
-            </div>
-            <p className="text-xs text-muted-foreground">Đã hoàn thành</p>
-          </CardContent>
-        </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Công việc</CardTitle>
+              <CheckSquare className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {stats.completedTasks}/{stats.totalTasks}
+              </div>
+              <p className="text-xs text-muted-foreground">Đã hoàn thành</p>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Quá hạn</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className={`text-2xl font-bold ${overdueTasks.length > 0 ? "text-red-600" : ""}`}>
-              {overdueTasks.length}
-            </div>
-            <p className="text-xs text-muted-foreground">Cần xử lý ngay</p>
-          </CardContent>
-        </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Quá hạn</CardTitle>
+              <Clock className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className={`text-2xl font-bold ${overdueTasks.length > 0 ? "text-red-600" : ""}`}>
+                {overdueTasks.length}
+              </div>
+              <p className="text-xs text-muted-foreground">Cần xử lý ngay</p>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ngân sách</CardTitle>
-            <Wallet className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(stats.totalSpent)}</div>
-            <p className="text-xs text-muted-foreground">
-              / {formatCurrency(stats.totalBudget)} dự kiến
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Ngân sách</CardTitle>
+              <Wallet className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{formatCurrency(stats.totalSpent)}</div>
+              <p className="text-xs text-muted-foreground">
+                / {formatCurrency(stats.totalBudget)} dự kiến
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Main Content */}
+      {isLoading ? (
+        <div className="grid gap-4 md:grid-cols-2">
+          <Skeleton className="h-64" />
+          <Skeleton className="h-64" />
+        </div>
+      ) : (
       <div className="grid gap-4 md:grid-cols-2">
         {/* Upcoming Tasks */}
         <Card>
@@ -240,6 +238,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+      )}
 
       {/* Recent Projects */}
       <Card>

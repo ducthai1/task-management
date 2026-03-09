@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { LogOut, User, Settings } from "lucide-react";
 import Link from "next/link";
 import { OfflineIndicator } from "@/components/pwa/offline-indicator";
+import { CommandSearch } from "@/components/shared/command-search";
 
 function HeaderComponent() {
   const { user, signOut } = useAuth();
@@ -51,7 +52,7 @@ function HeaderComponent() {
       )}
     >
       <div>
-        {/* Breadcrumb or page title can go here */}
+        <CommandSearch />
       </div>
 
       <div className="flex items-center gap-4">

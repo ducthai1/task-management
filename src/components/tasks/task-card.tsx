@@ -33,9 +33,10 @@ interface TaskCardProps {
   onDelete?: (id: string) => void;
   onView?: (task: Task) => void;
   draggable?: boolean;
+  assigneeName?: string;
 }
 
-export function TaskCard({ task, onEdit, onDelete, onView, draggable }: TaskCardProps) {
+export function TaskCard({ task, onEdit, onDelete, onView, draggable, assigneeName }: TaskCardProps) {
   const priority = priorityConfig[task.priority];
 
   return (
@@ -104,6 +105,14 @@ export function TaskCard({ task, onEdit, onDelete, onView, draggable }: TaskCard
               <span className="text-xs text-muted-foreground">
                 {formatCurrency(task.actual_cost || task.estimated_cost)}
               </span>
+            )}
+
+            {assigneeName && (
+              <div className="flex items-center gap-1 text-xs text-muted-foreground ml-auto" title={assigneeName}>
+                <div className="h-5 w-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-medium">
+                  {assigneeName.charAt(0).toUpperCase()}
+                </div>
+              </div>
             )}
           </div>
         </div>

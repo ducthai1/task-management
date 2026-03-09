@@ -3,9 +3,14 @@
 import { use } from "react";
 import Link from "next/link";
 import { useProject } from "@/hooks/use-projects";
-import { ExportOptions } from "@/components/export/export-options";
+import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+
+const ExportOptions = dynamic(
+  () => import("@/components/export/export-options").then((mod) => mod.ExportOptions),
+  { loading: () => <Skeleton className="h-64" />, ssr: false }
+);
 import { ArrowLeft, Download } from "lucide-react";
 
 export default function ExportPage({
