@@ -79,19 +79,55 @@ export function useCreateTask() {
       if (error) throw error;
       return data as Task;
     },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["tasks", data.project_id] });
+    // Optimistic update — show task instantly in list
+    onMutate: async (newTask) => {
+      const projectId = newTask.project_id;
+      await queryClient.cancelQueries({ queryKey: ["tasks", projectId] });
+      const previous = queryClient.getQueryData<Task[]>(["tasks", projectId]);
+      const optimistic: Task = {
+        id: `temp-${Date.now()}`,
+        project_id: projectId,
+        parent_id: null,
+        title: newTask.title || "",
+        description: newTask.description || null,
+        status: newTask.status || "todo",
+        priority: newTask.priority || "medium",
+        category: newTask.category || null,
+        assignee_id: newTask.assignee_id || null,
+        start_date: newTask.start_date || null,
+        due_date: newTask.due_date || null,
+        estimated_cost: newTask.estimated_cost || 0,
+        actual_cost: newTask.actual_cost || 0,
+        notes: newTask.notes || null,
+        position: (previous?.length || 0) + 1,
+        created_at: new Date().toISOString(),
+      };
+      queryClient.setQueryData<Task[]>(
+        ["tasks", projectId],
+        (old) => [...(old || []), optimistic]
+      );
+      return { previous, projectId };
+    },
+    onSuccess: () => {
       toast({
         title: "Tạo task thành công",
         description: "Task mới đã được thêm.",
       });
     },
-    onError: (error) => {
+    onError: (error, newTask, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["tasks", context.projectId], context.previous);
+      }
       toast({
         title: "Lỗi",
         description: error.message,
         variant: "destructive",
       });
+    },
+    onSettled: (data) => {
+      if (data) {
+        queryClient.invalidateQueries({ queryKey: ["tasks", data.project_id] });
+      }
     },
   });
 }

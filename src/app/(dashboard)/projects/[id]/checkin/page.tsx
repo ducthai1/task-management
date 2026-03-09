@@ -3,7 +3,7 @@
 import { use, useState, useMemo } from "react";
 import Link from "next/link";
 import { useProject } from "@/hooks/use-projects";
-import { useGuests, useUpdateGuest, useGuestStats } from "@/hooks/use-guests";
+import { useGuests, useUpdateGuest, computeGuestStats } from "@/hooks/use-guests";
 import type { Guest } from "@/types/database";
 import { CheckinStats } from "@/components/checkin/checkin-stats";
 import { QRDisplay } from "@/components/checkin/qr-display";
@@ -50,7 +50,7 @@ export default function CheckinPage({
   const { id: projectId } = use(params);
   const { data: project, isLoading: projectLoading } = useProject(projectId);
   const { data: guests, isLoading: guestsLoading } = useGuests(projectId);
-  const stats = useGuestStats(projectId);
+  const stats = useMemo(() => computeGuestStats(guests), [guests]);
   const updateGuest = useUpdateGuest();
 
   const [search, setSearch] = useState("");

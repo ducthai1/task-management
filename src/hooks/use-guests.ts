@@ -25,41 +25,24 @@ export function useGuests(projectId: string) {
   });
 }
 
-export function useGuestGroups(projectId: string) {
-  const supabase = useMemo(() => createClient(), []);
-
-  return useQuery({
-    queryKey: ["guest_groups", projectId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("guests")
-        .select("group_name")
-        .eq("project_id", projectId)
-        .not("group_name", "is", null)
-        .returns<{ group_name: string | null }[]>();
-
-      if (error) throw error;
-      const groups = [...new Set(data.map((g) => g.group_name))].filter(Boolean);
-      return groups as string[];
-    },
-    enabled: !!projectId,
-  });
+// Pure function — derive stats from guests data, no extra fetch
+export function computeGuestStats(guests: Guest[] | undefined) {
+  if (!guests) return { total: 0, confirmed: 0, declined: 0, pending: 0, totalRsvpCount: 0, checkedIn: 0, invitationSent: 0 };
+  return {
+    total: guests.length,
+    confirmed: guests.filter((g) => g.rsvp_status === "confirmed").length,
+    declined: guests.filter((g) => g.rsvp_status === "declined").length,
+    pending: guests.filter((g) => g.rsvp_status === "pending").length,
+    totalRsvpCount: guests.reduce((sum, g) => sum + (g.rsvp_status === "confirmed" ? g.rsvp_count : 0), 0),
+    checkedIn: guests.filter((g) => g.checked_in).length,
+    invitationSent: guests.filter((g) => g.invitation_sent).length,
+  };
 }
 
-export function useGuestStats(projectId: string) {
-  const { data: guests } = useGuests(projectId);
-
-  const stats = {
-    total: guests?.length || 0,
-    confirmed: guests?.filter((g) => g.rsvp_status === "confirmed").length || 0,
-    declined: guests?.filter((g) => g.rsvp_status === "declined").length || 0,
-    pending: guests?.filter((g) => g.rsvp_status === "pending").length || 0,
-    totalRsvpCount: guests?.reduce((sum, g) => sum + (g.rsvp_status === "confirmed" ? g.rsvp_count : 0), 0) || 0,
-    checkedIn: guests?.filter((g) => g.checked_in).length || 0,
-    invitationSent: guests?.filter((g) => g.invitation_sent).length || 0,
-  };
-
-  return stats;
+// Pure function — derive unique group names from guests data, no extra fetch
+export function deriveGuestGroups(guests: Guest[] | undefined): string[] {
+  if (!guests) return [];
+  return [...new Set(guests.map((g) => g.group_name).filter(Boolean))] as string[];
 }
 
 interface CreateGuestInput {
@@ -90,20 +73,57 @@ export function useCreateGuest() {
       if (error) throw error;
       return data as Guest;
     },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["guests", data.project_id] });
-      queryClient.invalidateQueries({ queryKey: ["guest_groups", data.project_id] });
-      toast({
-        title: "Thêm khách thành công",
-        description: `${data.name} đã được thêm vào danh sách.`,
-      });
+    // Optimistic update — show guest instantly
+    onMutate: async (newGuest) => {
+      await queryClient.cancelQueries({ queryKey: ["guests", newGuest.project_id] });
+      const previous = queryClient.getQueryData<Guest[]>(["guests", newGuest.project_id]);
+      const optimistic: Guest = {
+        id: `temp-${Date.now()}`,
+        project_id: newGuest.project_id,
+        name: newGuest.name,
+        phone: newGuest.phone || null,
+        email: newGuest.email || null,
+        group_name: newGuest.group_name || null,
+        invitation_sent: false,
+        invitation_sent_at: null,
+        rsvp_status: newGuest.rsvp_status || "pending",
+        rsvp_count: newGuest.rsvp_count || 1,
+        table_number: newGuest.table_number || null,
+        qr_code: null,
+        checked_in: false,
+        checked_in_at: null,
+        gift_amount: null,
+        notes: newGuest.notes || null,
+        source: "manual",
+        external_id: null,
+        created_at: new Date().toISOString(),
+      };
+      queryClient.setQueryData<Guest[]>(
+        ["guests", newGuest.project_id],
+        (old) => [optimistic, ...(old || [])]
+      );
+      return { previous };
     },
-    onError: (error) => {
+    onError: (error, newGuest, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["guests", newGuest.project_id], context.previous);
+      }
       toast({
         title: "Lỗi",
         description: error.message,
         variant: "destructive",
       });
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Thêm khách thành công",
+        description: `${data.name} đã được thêm vào danh sách.`,
+      });
+    },
+    onSettled: (data) => {
+      if (data) {
+        queryClient.invalidateQueries({ queryKey: ["guests", data.project_id] });
+      }
     },
   });
 }
@@ -144,7 +164,6 @@ export function useUpdateGuest() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["guests", data.project_id] });
-      queryClient.invalidateQueries({ queryKey: ["guest_groups", data.project_id] });
       toast({
         title: "Cập nhật thành công",
         description: `Thông tin ${data.name} đã được cập nhật.`,
@@ -173,7 +192,6 @@ export function useDeleteGuest() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["guests", data.projectId] });
-      queryClient.invalidateQueries({ queryKey: ["guest_groups", data.projectId] });
       toast({
         title: "Xóa thành công",
         description: "Khách đã được xóa khỏi danh sách.",

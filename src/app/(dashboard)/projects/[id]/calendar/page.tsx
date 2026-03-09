@@ -1,15 +1,21 @@
 "use client";
 
 import { use, useState } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useProject } from "@/hooks/use-projects";
 import { useTasks, useUpdateTask } from "@/hooks/use-tasks";
 import type { Task } from "@/types/database";
-import { TaskCalendar } from "@/components/calendar/task-calendar";
 import { TaskForm } from "@/components/tasks/task-form";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft } from "lucide-react";
+
+// Lazy load react-big-calendar (~250KB) — only loaded when calendar page visited
+const TaskCalendar = dynamic(
+  () => import("@/components/calendar/task-calendar").then((mod) => mod.TaskCalendar),
+  { loading: () => <Skeleton className="h-[600px]" />, ssr: false }
+);
 
 export default function CalendarPage({
   params,

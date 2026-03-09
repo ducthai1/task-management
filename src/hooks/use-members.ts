@@ -10,15 +10,9 @@ export type MemberWithProfile = ProjectMember & {
   profile?: Profile | null;
 };
 
-interface ProjectMemberRow {
-  id: string;
-  project_id: string;
-  user_id: string | null;
-  invited_email: string | null;
-  role: "owner" | "editor" | "viewer";
-  invite_status: "pending" | "accepted" | "rejected";
-  created_at: string;
-}
+// Supabase JOIN — fetches member + profile in single query
+// project_members.user_id → auth.users.id = profiles.id
+const MEMBER_SELECT = "*, profile:profiles!user_id(id, full_name, avatar_url)";
 
 export function useProjectMembers(projectId: string) {
   const supabase = useMemo(() => createClient(), []);
@@ -26,38 +20,14 @@ export function useProjectMembers(projectId: string) {
   return useQuery({
     queryKey: ["project_members", projectId],
     queryFn: async () => {
-      // Fetch members
-      const { data: members, error } = await supabase
+      const { data, error } = await supabase
         .from("project_members")
-        .select("*")
+        .select(MEMBER_SELECT)
         .eq("project_id", projectId)
         .order("created_at", { ascending: true });
 
       if (error) throw error;
-      if (!members || members.length === 0) return [];
-
-      const typedMembers = members as ProjectMemberRow[];
-
-      // Fetch user profiles separately
-      const userIds = typedMembers
-        .map((m) => m.user_id)
-        .filter((id): id is string => id !== null);
-
-      if (userIds.length === 0) {
-        return typedMembers.map((m) => ({ ...m, profile: null })) as MemberWithProfile[];
-      }
-
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("id, full_name, avatar_url")
-        .in("id", userIds);
-
-      const profileMap = new Map((profiles as Profile[])?.map((p) => [p.id, p]) || []);
-
-      return typedMembers.map((m) => ({
-        ...m,
-        profile: m.user_id ? profileMap.get(m.user_id) || null : null,
-      })) as MemberWithProfile[];
+      return (data || []) as MemberWithProfile[];
     },
     enabled: !!projectId,
   });
@@ -72,32 +42,15 @@ export function useMyInvites() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user?.email) return [];
 
-      // Fetch invites
-      const { data: invites, error } = await supabase
+      // Fetch invites with project info in single query
+      const { data, error } = await supabase
         .from("project_members")
-        .select("*")
+        .select("*, project:projects(id, name, type)")
         .eq("invited_email", user.email)
         .eq("invite_status", "pending");
 
       if (error) throw error;
-      if (!invites || invites.length === 0) return [];
-
-      const typedInvites = invites as ProjectMemberRow[];
-
-      // Fetch projects separately
-      const projectIds = typedInvites.map((i) => i.project_id);
-      const { data: projects } = await supabase
-        .from("projects")
-        .select("id, name, type")
-        .in("id", projectIds);
-
-      interface ProjectBasic { id: string; name: string; type: string; }
-      const projectMap = new Map((projects as ProjectBasic[] | null)?.map((p) => [p.id, p]) || []);
-
-      return typedInvites.map((i) => ({
-        ...i,
-        project: projectMap.get(i.project_id) || null,
-      }));
+      return data || [];
     },
   });
 }

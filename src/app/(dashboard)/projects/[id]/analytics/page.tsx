@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useProject } from "@/hooks/use-projects";
 import { useTasks } from "@/hooks/use-tasks";
 import { useBudgetCategories } from "@/hooks/use-budget";
-import { useGuestStats } from "@/hooks/use-guests";
+import { useGuests, computeGuestStats } from "@/hooks/use-guests";
 import { ProgressCard } from "@/components/analytics/progress-card";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -39,7 +39,8 @@ export default function AnalyticsPage({
   const { data: project, isLoading: projectLoading } = useProject(projectId);
   const { data: tasks, isLoading: tasksLoading } = useTasks(projectId);
   const { data: categories, isLoading: categoriesLoading } = useBudgetCategories(projectId);
-  const guestStats = useGuestStats(projectId);
+  const { data: guests, isLoading: guestsLoading } = useGuests(projectId);
+  const guestStats = useMemo(() => computeGuestStats(guests), [guests]);
 
   // Task stats
   const taskStats = useMemo(() => {
@@ -91,7 +92,7 @@ export default function AnalyticsPage({
     };
   }, [tasks, categories]);
 
-  const isLoading = projectLoading || tasksLoading || categoriesLoading;
+  const isLoading = projectLoading || tasksLoading || categoriesLoading || guestsLoading;
 
   if (isLoading) {
     return (

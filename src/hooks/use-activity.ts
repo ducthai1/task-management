@@ -3,19 +3,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { ActivityLog, Profile } from "@/types/database";
+import type { ActivityLog } from "@/types/database";
 
-interface ActivityLogRow {
-  id: string;
-  project_id: string;
-  user_id: string;
-  action: "create" | "update" | "delete";
-  entity_type: "task" | "guest" | "budget" | "member";
-  entity_id: string;
-  entity_name: string | null;
-  changes: Record<string, unknown> | null;
-  created_at: string;
-}
+// Supabase JOIN — fetches activity log + user profile in single query
+const ACTIVITY_SELECT = "*, user:profiles!activity_logs_user_id_profiles_fkey(id, full_name, avatar_url)";
 
 export function useActivityLogs(projectId: string, entityType?: string) {
   const supabase = useMemo(() => createClient(), []);
@@ -25,7 +16,7 @@ export function useActivityLogs(projectId: string, entityType?: string) {
     queryFn: async () => {
       let query = supabase
         .from("activity_logs")
-        .select("*")
+        .select(ACTIVITY_SELECT)
         .eq("project_id", projectId)
         .order("created_at", { ascending: false })
         .limit(100);
@@ -36,23 +27,7 @@ export function useActivityLogs(projectId: string, entityType?: string) {
 
       const { data, error } = await query;
       if (error) throw error;
-      if (!data || data.length === 0) return [];
-
-      const typedLogs = data as ActivityLogRow[];
-
-      // Fetch user profiles separately
-      const userIds = [...new Set(typedLogs.map((log) => log.user_id))];
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("id, full_name, avatar_url")
-        .in("id", userIds);
-
-      const profileMap = new Map((profiles as Profile[])?.map((p) => [p.id, p]) || []);
-
-      return typedLogs.map((log) => ({
-        ...log,
-        user: profileMap.get(log.user_id) || undefined,
-      })) as ActivityLog[];
+      return (data || []) as ActivityLog[];
     },
     enabled: !!projectId,
   });

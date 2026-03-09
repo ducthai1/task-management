@@ -3,17 +3,11 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { Comment, Profile } from "@/types/database";
+import type { Comment } from "@/types/database";
 import { useToast } from "@/hooks/use-toast";
 
-interface CommentRow {
-  id: string;
-  task_id: string;
-  user_id: string;
-  content: string;
-  created_at: string;
-  updated_at: string;
-}
+// Supabase JOIN select — fetches comment + user profile in single query
+const COMMENT_SELECT = "id, task_id, user_id, content, created_at, updated_at, user:profiles!comments_user_id_profiles_fkey(id, full_name, avatar_url)";
 
 export function useComments(taskId: string) {
   const supabase = useMemo(() => createClient(), []);
@@ -22,31 +16,14 @@ export function useComments(taskId: string) {
   const query = useQuery({
     queryKey: ["comments", taskId],
     queryFn: async () => {
-      // Fetch comments
-      const { data: comments, error } = await supabase
+      const { data, error } = await supabase
         .from("comments")
-        .select("*")
+        .select(COMMENT_SELECT)
         .eq("task_id", taskId)
         .order("created_at", { ascending: true });
 
       if (error) throw error;
-      if (!comments || comments.length === 0) return [];
-
-      const typedComments = comments as CommentRow[];
-
-      // Fetch user profiles separately
-      const userIds = [...new Set(typedComments.map((c) => c.user_id))];
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("id, full_name, avatar_url")
-        .in("id", userIds);
-
-      // Merge profiles into comments
-      const profileMap = new Map((profiles as Profile[])?.map((p) => [p.id, p]) || []);
-      return typedComments.map((c) => ({
-        ...c,
-        user: profileMap.get(c.user_id) || undefined,
-      })) as Comment[];
+      return (data || []) as Comment[];
     },
     enabled: !!taskId,
   });
@@ -96,30 +73,42 @@ export function useAddComment() {
           user_id: user.id,
           content,
         } as never)
-        .select("*")
+        .select(COMMENT_SELECT)
         .single();
 
       if (error) throw error;
-
-      // Fetch user profile
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("id, full_name, avatar_url")
-        .eq("id", user.id)
-        .single();
-
-      const commentData = data as CommentRow;
-      return { ...commentData, user: profile || undefined } as Comment;
+      return data as Comment;
     },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["comments", variables.taskId] });
+    // Optimistic update — show comment instantly
+    onMutate: async ({ taskId, content }) => {
+      await queryClient.cancelQueries({ queryKey: ["comments", taskId] });
+      const previous = queryClient.getQueryData<Comment[]>(["comments", taskId]);
+      const optimistic: Comment = {
+        id: `temp-${Date.now()}`,
+        task_id: taskId,
+        user_id: "optimistic",
+        content,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      queryClient.setQueryData<Comment[]>(
+        ["comments", taskId],
+        (old) => [...(old || []), optimistic]
+      );
+      return { previous, taskId };
     },
-    onError: (error) => {
+    onError: (error, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["comments", context.taskId], context.previous);
+      }
       toast({
         title: "Lỗi",
         description: error.message,
         variant: "destructive",
       });
+    },
+    onSettled: (_, __, { taskId }) => {
+      queryClient.invalidateQueries({ queryKey: ["comments", taskId] });
     },
   });
 }
@@ -135,12 +124,11 @@ export function useUpdateComment() {
         .from("comments")
         .update({ content, updated_at: new Date().toISOString() } as never)
         .eq("id", id)
-        .select("*")
+        .select(COMMENT_SELECT)
         .single();
 
       if (error) throw error;
-      const commentData = data as CommentRow;
-      return { ...commentData, taskId };
+      return { ...(data as Comment), taskId };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["comments", data.taskId] });

@@ -5,8 +5,8 @@ import Link from "next/link";
 import { useProject } from "@/hooks/use-projects";
 import {
   useGuests,
-  useGuestGroups,
-  useGuestStats,
+  computeGuestStats,
+  deriveGuestGroups,
   useCreateGuest,
   useUpdateGuest,
   useDeleteGuest,
@@ -45,8 +45,8 @@ export default function GuestsPage({
   const { id: projectId } = use(params);
   const { data: project, isLoading: projectLoading } = useProject(projectId);
   const { data: guests, isLoading: guestsLoading } = useGuests(projectId);
-  const { data: groups } = useGuestGroups(projectId);
-  const stats = useGuestStats(projectId);
+  const stats = useMemo(() => computeGuestStats(guests), [guests]);
+  const groups = useMemo(() => deriveGuestGroups(guests), [guests]);
 
   const createGuest = useCreateGuest();
   const updateGuest = useUpdateGuest();
