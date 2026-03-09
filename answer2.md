@@ -1,0 +1,10 @@
+1. Authentication: Bạn muốn dùng Google Login (đơn giản) hay Email/Password? -> Cả hai?                                                                                             
+  2. Hosting preference:                                                                                                                                                               
+    - Vercel (miễn phí tier) + Supabase (miễn phí tier)                                                                                                                                                
+  3. Về Templates: Bạn muốn hệ thống có sẵn template cho những loại dự án nào?                                                                                                         
+    - Đám cưới                                                                                                                                                                         
+    - Mua nhà                                                                                                                                                                          
+    - Du lịch                                                                                                                                                                          
+    - Event/Party                                                                                                                                                                                                                                                                                                                                               
+  4. Budget concern: Bạn có budget cho hosting/services không? Hay muốn tối ưu free tier?         Tối ưu free cho tôi                                                                                     
+  5. Tech stack preference: Bạn có quen thuộc với Next.js + TypeScript không? Hãy dùng những gì tối ưu nhất tôi có thể làm hết
