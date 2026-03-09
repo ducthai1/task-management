@@ -108,6 +108,11 @@ export function LoginForm() {
                 {errors.password.message}
               </p>
             )}
+            <div className="flex justify-end">
+              <Link href="/forgot-password" className="text-sm text-primary hover:underline">
+                Quên mật khẩu?
+              </Link>
+            </div>
           </div>
         </CardContent>
         <CardFooter className="flex flex-col space-y-4">

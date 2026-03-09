@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
 // Allowed redirect paths (whitelist)
-const ALLOWED_REDIRECTS = ["/", "/projects", "/login", "/signup"];
+const ALLOWED_REDIRECTS = ["/", "/projects", "/login", "/signup", "/reset-password"];
 
 function isValidRedirect(path: string): boolean {
   // Only allow relative paths starting with /
